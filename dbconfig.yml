@@ -1,0 +1,4 @@
+development:
+  dialect: sqlite3
+  datasource: ./bin/db.db
+  dir: migrations/sqlite3/schema
