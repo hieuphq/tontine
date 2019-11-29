@@ -560,7 +560,7 @@ func (groupL) LoadGroupLogs(ctx context.Context, e boil.ContextExecutor, singula
 			}
 
 			for _, a := range args {
-				if queries.Equal(a, obj.ID) {
+				if a == obj.ID {
 					continue Outer
 				}
 			}
@@ -615,7 +615,7 @@ func (groupL) LoadGroupLogs(ctx context.Context, e boil.ContextExecutor, singula
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if queries.Equal(local.ID, foreign.GroupID) {
+			if local.ID == foreign.GroupID {
 				local.R.GroupLogs = append(local.R.GroupLogs, foreign)
 				if foreign.R == nil {
 					foreign.R = &groupLogR{}
@@ -855,7 +855,7 @@ func (o *Group) AddGroupLogs(ctx context.Context, exec boil.ContextExecutor, ins
 	var err error
 	for _, rel := range related {
 		if insert {
-			queries.Assign(&rel.GroupID, o.ID)
+			rel.GroupID = o.ID
 			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
@@ -876,7 +876,7 @@ func (o *Group) AddGroupLogs(ctx context.Context, exec boil.ContextExecutor, ins
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			queries.Assign(&rel.GroupID, o.ID)
+			rel.GroupID = o.ID
 		}
 	}
 
@@ -897,76 +897,6 @@ func (o *Group) AddGroupLogs(ctx context.Context, exec boil.ContextExecutor, ins
 			rel.R.Group = o
 		}
 	}
-	return nil
-}
-
-// SetGroupLogs removes all previously related items of the
-// group replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.Group's GroupLogs accordingly.
-// Replaces o.R.GroupLogs with related.
-// Sets related.R.Group's GroupLogs accordingly.
-func (o *Group) SetGroupLogs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*GroupLog) error {
-	query := "update \"group_logs\" set \"group_id\" = null where \"group_id\" = ?"
-	values := []interface{}{o.ID}
-	if boil.IsDebug(ctx) {
-		writer := boil.DebugWriterFrom(ctx)
-		fmt.Fprintln(writer, query)
-		fmt.Fprintln(writer, values)
-	}
-	_, err := exec.ExecContext(ctx, query, values...)
-	if err != nil {
-		return errors.Wrap(err, "failed to remove relationships before set")
-	}
-
-	if o.R != nil {
-		for _, rel := range o.R.GroupLogs {
-			queries.SetScanner(&rel.GroupID, nil)
-			if rel.R == nil {
-				continue
-			}
-
-			rel.R.Group = nil
-		}
-
-		o.R.GroupLogs = nil
-	}
-	return o.AddGroupLogs(ctx, exec, insert, related...)
-}
-
-// RemoveGroupLogs relationships from objects passed in.
-// Removes related items from R.GroupLogs (uses pointer comparison, removal does not keep order)
-// Sets related.R.Group.
-func (o *Group) RemoveGroupLogs(ctx context.Context, exec boil.ContextExecutor, related ...*GroupLog) error {
-	var err error
-	for _, rel := range related {
-		queries.SetScanner(&rel.GroupID, nil)
-		if rel.R != nil {
-			rel.R.Group = nil
-		}
-		if _, err = rel.Update(ctx, exec, boil.Whitelist("group_id")); err != nil {
-			return err
-		}
-	}
-	if o.R == nil {
-		return nil
-	}
-
-	for _, rel := range related {
-		for i, ri := range o.R.GroupLogs {
-			if rel != ri {
-				continue
-			}
-
-			ln := len(o.R.GroupLogs)
-			if ln > 1 && i < ln-1 {
-				o.R.GroupLogs[i] = o.R.GroupLogs[ln-1]
-			}
-			o.R.GroupLogs = o.R.GroupLogs[:ln-1]
-			break
-		}
-	}
-
 	return nil
 }
 

@@ -66,15 +66,18 @@ var InvestorWhere = struct {
 // InvestorRels is where relationship names are stored.
 var InvestorRels = struct {
 	ActivityLogs    string
+	GroupLogItems   string
 	GroupsInvestors string
 }{
 	ActivityLogs:    "ActivityLogs",
+	GroupLogItems:   "GroupLogItems",
 	GroupsInvestors: "GroupsInvestors",
 }
 
 // investorR is where relationships are stored.
 type investorR struct {
 	ActivityLogs    ActivityLogSlice
+	GroupLogItems   GroupLogItemSlice
 	GroupsInvestors GroupsInvestorSlice
 }
 
@@ -389,6 +392,27 @@ func (o *Investor) ActivityLogs(mods ...qm.QueryMod) activityLogQuery {
 	return query
 }
 
+// GroupLogItems retrieves all the group_log_item's GroupLogItems with an executor.
+func (o *Investor) GroupLogItems(mods ...qm.QueryMod) groupLogItemQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"group_log_items\".\"investor_id\"=?", o.ID),
+	)
+
+	query := GroupLogItems(queryMods...)
+	queries.SetFrom(query.Query, "\"group_log_items\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"group_log_items\".*"})
+	}
+
+	return query
+}
+
 // GroupsInvestors retrieves all the groups_investor's GroupsInvestors with an executor.
 func (o *Investor) GroupsInvestors(mods ...qm.QueryMod) groupsInvestorQuery {
 	var queryMods []qm.QueryMod
@@ -495,6 +519,101 @@ func (investorL) LoadActivityLogs(ctx context.Context, e boil.ContextExecutor, s
 				local.R.ActivityLogs = append(local.R.ActivityLogs, foreign)
 				if foreign.R == nil {
 					foreign.R = &activityLogR{}
+				}
+				foreign.R.Investor = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadGroupLogItems allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (investorL) LoadGroupLogItems(ctx context.Context, e boil.ContextExecutor, singular bool, maybeInvestor interface{}, mods queries.Applicator) error {
+	var slice []*Investor
+	var object *Investor
+
+	if singular {
+		object = maybeInvestor.(*Investor)
+	} else {
+		slice = *maybeInvestor.(*[]*Investor)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &investorR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &investorR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.ID) {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`group_log_items`), qm.WhereIn(`group_log_items.investor_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load group_log_items")
+	}
+
+	var resultSlice []*GroupLogItem
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice group_log_items")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on group_log_items")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for group_log_items")
+	}
+
+	if len(groupLogItemAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.GroupLogItems = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &groupLogItemR{}
+			}
+			foreign.R.Investor = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if queries.Equal(local.ID, foreign.InvestorID) {
+				local.R.GroupLogItems = append(local.R.GroupLogItems, foreign)
+				if foreign.R == nil {
+					foreign.R = &groupLogItemR{}
 				}
 				foreign.R.Investor = local
 				break
@@ -650,6 +769,129 @@ func (o *Investor) AddActivityLogs(ctx context.Context, exec boil.ContextExecuto
 			rel.R.Investor = o
 		}
 	}
+	return nil
+}
+
+// AddGroupLogItems adds the given related objects to the existing relationships
+// of the investor, optionally inserting them as new records.
+// Appends related to o.R.GroupLogItems.
+// Sets related.R.Investor appropriately.
+func (o *Investor) AddGroupLogItems(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*GroupLogItem) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			queries.Assign(&rel.InvestorID, o.ID)
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"group_log_items\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 0, []string{"investor_id"}),
+				strmangle.WhereClause("\"", "\"", 0, groupLogItemPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			queries.Assign(&rel.InvestorID, o.ID)
+		}
+	}
+
+	if o.R == nil {
+		o.R = &investorR{
+			GroupLogItems: related,
+		}
+	} else {
+		o.R.GroupLogItems = append(o.R.GroupLogItems, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &groupLogItemR{
+				Investor: o,
+			}
+		} else {
+			rel.R.Investor = o
+		}
+	}
+	return nil
+}
+
+// SetGroupLogItems removes all previously related items of the
+// investor replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Investor's GroupLogItems accordingly.
+// Replaces o.R.GroupLogItems with related.
+// Sets related.R.Investor's GroupLogItems accordingly.
+func (o *Investor) SetGroupLogItems(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*GroupLogItem) error {
+	query := "update \"group_log_items\" set \"investor_id\" = null where \"investor_id\" = ?"
+	values := []interface{}{o.ID}
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, query)
+		fmt.Fprintln(writer, values)
+	}
+	_, err := exec.ExecContext(ctx, query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.GroupLogItems {
+			queries.SetScanner(&rel.InvestorID, nil)
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.Investor = nil
+		}
+
+		o.R.GroupLogItems = nil
+	}
+	return o.AddGroupLogItems(ctx, exec, insert, related...)
+}
+
+// RemoveGroupLogItems relationships from objects passed in.
+// Removes related items from R.GroupLogItems (uses pointer comparison, removal does not keep order)
+// Sets related.R.Investor.
+func (o *Investor) RemoveGroupLogItems(ctx context.Context, exec boil.ContextExecutor, related ...*GroupLogItem) error {
+	var err error
+	for _, rel := range related {
+		queries.SetScanner(&rel.InvestorID, nil)
+		if rel.R != nil {
+			rel.R.Investor = nil
+		}
+		if _, err = rel.Update(ctx, exec, boil.Whitelist("investor_id")); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.GroupLogItems {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.GroupLogItems)
+			if ln > 1 && i < ln-1 {
+				o.R.GroupLogItems[i] = o.R.GroupLogItems[ln-1]
+			}
+			o.R.GroupLogItems = o.R.GroupLogItems[:ln-1]
+			break
+		}
+	}
+
 	return nil
 }
 

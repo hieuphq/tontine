@@ -6,6 +6,7 @@ package dbmodel
 var TableNames = struct {
 	ActivityLogs    string
 	GorpMigrations  string
+	GroupLogItems   string
 	GroupLogs       string
 	Groups          string
 	GroupsInvestors string
@@ -13,6 +14,7 @@ var TableNames = struct {
 }{
 	ActivityLogs:    "activity_logs",
 	GorpMigrations:  "gorp_migrations",
+	GroupLogItems:   "group_log_items",
 	GroupLogs:       "group_logs",
 	Groups:          "groups",
 	GroupsInvestors: "groups_investors",

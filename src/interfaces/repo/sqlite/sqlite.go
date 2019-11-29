@@ -22,7 +22,9 @@ type impl struct {
 // NewRepo new default Repo
 func NewRepo() *repo.Repo {
 	return &repo.Repo{
-		Group: newGroupRepo(),
+		Group:       newGroupRepo(),
+		ActivityLog: newActivityLogRepo(),
+		Investor:    newInvestorRepo(),
 	}
 }
 

@@ -12,7 +12,7 @@ import (
 
 func main() {
 	g := model.Group{
-		Name:            "HP",
+		Name:            "HTTP",
 		StrategyPercent: 20.0,
 	}
 
@@ -35,4 +35,23 @@ func main() {
 	}
 	fmt.Println(dt)
 
+	newG.Name = "HTTP 1"
+	updatedG, err := r.Group.Update(ctx, s, *newG)
+	if err != nil {
+		fmt.Println("unable update group : ", err)
+		return
+	}
+	fmt.Println(updatedG)
+	err = r.Group.Delete(ctx, s, *updatedG)
+	if err != nil {
+		fmt.Println("unable delete group : ", err)
+		return
+	}
+
+	dts, err := r.Group.GetList(ctx, s)
+	if err != nil {
+		fmt.Println("unable get group list: ", err)
+		return
+	}
+	fmt.Println(dts)
 }
