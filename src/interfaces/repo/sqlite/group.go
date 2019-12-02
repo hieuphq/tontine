@@ -27,6 +27,8 @@ func (r *groupRepo) Create(ctx context.Context, store store.Store, g model.Group
 	dt := dbmodel.Group{
 		Name:            g.Name,
 		StrategyPercent: null.Float64{Float64: g.StrategyPercent, Valid: true},
+		Amount:          g.Amount,
+		Currency:        g.Currency,
 	}
 	err := dt.Insert(ctx, db, boil.Infer())
 	if err != nil {
@@ -55,6 +57,8 @@ func (r *groupRepo) Update(ctx context.Context, store store.Store, g model.Group
 		Float64: g.StrategyPercent,
 		Valid:   true,
 	}
+	dt.Amount = g.Amount
+	dt.Currency = g.Currency
 
 	if g.DeletedAt != nil {
 		dt.DeletedAt = null.NewTime(*g.DeletedAt, true)
@@ -108,6 +112,8 @@ func toModel(dt *dbmodel.Group) model.Group {
 		Base:            base,
 		Name:            dt.Name,
 		StrategyPercent: dt.StrategyPercent.Float64,
+		Amount:          dt.Amount,
+		Currency:        dt.Currency,
 	}
 }
 
@@ -133,18 +139,28 @@ func (r *groupRepo) GetGroupInvestorByGroupAndInvestorID(ctx context.Context, st
 	rs := toGroupInvestorModel(dt)
 	return &rs, nil
 }
-func (r *groupRepo) AddInvestor(ctx context.Context, store store.Store, invtID int64, gID int64) error {
+
+func (r *groupRepo) AddInvestor(ctx context.Context, store store.Store, gi model.GroupInvestor) (*model.GroupInvestor, error) {
 	db := store.DB()
 	dt := dbmodel.GroupsInvestor{
-		GroupID:    gID,
-		InvestorID: invtID,
+		GroupID:    gi.GroupID,
+		InvestorID: gi.InvestorID,
+		Amount:     gi.Amount,
+		Currency:   gi.Currency,
 	}
 	err := dt.Insert(ctx, db, boil.Infer())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	gi.ID = dt.ID
+	gi.CreatedAt = dt.CreatedAt
+	gi.UpdatedAt = dt.UpdatedAt
+	if dt.DeletedAt.Valid {
+		v := dt.DeletedAt.Time
+		gi.DeletedAt = &v
+	}
+	return &gi, nil
 }
 
 func (r *groupRepo) FarawellInvestor(ctx context.Context, store store.Store, invtID int64, gID int64) error {
@@ -180,5 +196,79 @@ func toGroupInvestorModel(dt *dbmodel.GroupsInvestor) model.GroupInvestor {
 		Base:       base,
 		GroupID:    dt.GroupID,
 		InvestorID: dt.InvestorID,
+		Amount:     dt.Amount,
+		Currency:   dt.Currency,
 	}
+}
+
+func toGroupBalanceModel(dt *dbmodel.Group) model.GroupBalance {
+	g := toModel(dt)
+
+	dts := []model.InvestorBalance{}
+
+	if len(dt.R.GroupsInvestors) > 0 {
+		for idx := range dt.R.GroupsInvestors {
+			itm := dt.R.GroupsInvestors[idx]
+
+			dts = append(dts, model.InvestorBalance{
+				InvestorID: itm.InvestorID,
+				Amount:     itm.Amount,
+				Currency:   itm.Currency,
+			})
+		}
+	}
+
+	return model.GroupBalance{
+		Group:   &g,
+		Details: dts,
+	}
+}
+
+func (r *groupRepo) GetDetailByID(ctx context.Context, store store.Store, ID int64) (*model.GroupBalance, error) {
+	db := store.DB()
+	dt, err := dbmodel.
+		Groups(
+			qm.Where("id = ? AND deleted_at IS NULL", ID),
+			qm.Load(dbmodel.GroupRels.GroupsInvestors),
+		).
+		One(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
+	rs := toGroupBalanceModel(dt)
+	return &rs, nil
+}
+
+func (r *groupRepo) ExistedInvestor(ctx context.Context, store store.Store, groupID, invtID int64) (*model.GroupInvestor, error) {
+	db := store.DB()
+	dt, err := dbmodel.GroupsInvestors(
+		qm.Where("group_id = ? AND investor_id = ? AND deleted_at IS NULL", groupID, invtID),
+	).One(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	rs := toGroupInvestorModel(dt)
+	return &rs, nil
+}
+
+func (r *groupRepo) UpdateInvestor(ctx context.Context, store store.Store, gi model.GroupInvestor) (*model.GroupInvestor, error) {
+	db := store.DB()
+	dt, err := dbmodel.
+		GroupsInvestors(qm.Where("id = ? AND deleted_at IS NULL", gi.ID)).
+		One(ctx, db)
+
+	if err != nil {
+		return nil, err
+	}
+
+	dt.Amount = gi.Amount
+	dt.Currency = gi.Currency
+
+	_, err = dt.Update(ctx, db, boil.Infer())
+	if err != nil {
+		return nil, err
+	}
+
+	return &gi, nil
 }

@@ -26,6 +26,8 @@ type Group struct {
 	ID              int64        `boil:"id" json:"id" toml:"id" yaml:"id"`
 	Name            string       `boil:"name" json:"name" toml:"name" yaml:"name"`
 	StrategyPercent null.Float64 `boil:"strategy_percent" json:"strategy_percent,omitempty" toml:"strategy_percent" yaml:"strategy_percent,omitempty"`
+	Amount          float64      `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
+	Currency        string       `boil:"currency" json:"currency" toml:"currency" yaml:"currency"`
 	CreatedAt       time.Time    `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt       time.Time    `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	DeletedAt       null.Time    `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
@@ -38,6 +40,8 @@ var GroupColumns = struct {
 	ID              string
 	Name            string
 	StrategyPercent string
+	Amount          string
+	Currency        string
 	CreatedAt       string
 	UpdatedAt       string
 	DeletedAt       string
@@ -45,6 +49,8 @@ var GroupColumns = struct {
 	ID:              "id",
 	Name:            "name",
 	StrategyPercent: "strategy_percent",
+	Amount:          "amount",
+	Currency:        "currency",
 	CreatedAt:       "created_at",
 	UpdatedAt:       "updated_at",
 	DeletedAt:       "deleted_at",
@@ -56,6 +62,8 @@ var GroupWhere = struct {
 	ID              whereHelperint64
 	Name            whereHelperstring
 	StrategyPercent whereHelpernull_Float64
+	Amount          whereHelperfloat64
+	Currency        whereHelperstring
 	CreatedAt       whereHelpertime_Time
 	UpdatedAt       whereHelpertime_Time
 	DeletedAt       whereHelpernull_Time
@@ -63,6 +71,8 @@ var GroupWhere = struct {
 	ID:              whereHelperint64{field: "\"groups\".\"id\""},
 	Name:            whereHelperstring{field: "\"groups\".\"name\""},
 	StrategyPercent: whereHelpernull_Float64{field: "\"groups\".\"strategy_percent\""},
+	Amount:          whereHelperfloat64{field: "\"groups\".\"amount\""},
+	Currency:        whereHelperstring{field: "\"groups\".\"currency\""},
 	CreatedAt:       whereHelpertime_Time{field: "\"groups\".\"created_at\""},
 	UpdatedAt:       whereHelpertime_Time{field: "\"groups\".\"updated_at\""},
 	DeletedAt:       whereHelpernull_Time{field: "\"groups\".\"deleted_at\""},
@@ -95,9 +105,9 @@ func (*groupR) NewStruct() *groupR {
 type groupL struct{}
 
 var (
-	groupAllColumns            = []string{"id", "name", "strategy_percent", "created_at", "updated_at", "deleted_at"}
+	groupAllColumns            = []string{"id", "name", "strategy_percent", "amount", "currency", "created_at", "updated_at", "deleted_at"}
 	groupColumnsWithoutDefault = []string{}
-	groupColumnsWithDefault    = []string{"id", "name", "strategy_percent", "created_at", "updated_at", "deleted_at"}
+	groupColumnsWithDefault    = []string{"id", "name", "strategy_percent", "amount", "currency", "created_at", "updated_at", "deleted_at"}
 	groupPrimaryKeyColumns     = []string{"id"}
 )
 

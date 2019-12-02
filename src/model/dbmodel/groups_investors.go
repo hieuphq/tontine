@@ -26,6 +26,8 @@ type GroupsInvestor struct {
 	ID         int64     `boil:"id" json:"id" toml:"id" yaml:"id"`
 	InvestorID int64     `boil:"investor_id" json:"investor_id" toml:"investor_id" yaml:"investor_id"`
 	GroupID    int64     `boil:"group_id" json:"group_id" toml:"group_id" yaml:"group_id"`
+	Amount     float64   `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
+	Currency   string    `boil:"currency" json:"currency" toml:"currency" yaml:"currency"`
 	CreatedAt  time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt  time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	DeletedAt  null.Time `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
@@ -38,6 +40,8 @@ var GroupsInvestorColumns = struct {
 	ID         string
 	InvestorID string
 	GroupID    string
+	Amount     string
+	Currency   string
 	CreatedAt  string
 	UpdatedAt  string
 	DeletedAt  string
@@ -45,6 +49,8 @@ var GroupsInvestorColumns = struct {
 	ID:         "id",
 	InvestorID: "investor_id",
 	GroupID:    "group_id",
+	Amount:     "amount",
+	Currency:   "currency",
 	CreatedAt:  "created_at",
 	UpdatedAt:  "updated_at",
 	DeletedAt:  "deleted_at",
@@ -56,6 +62,8 @@ var GroupsInvestorWhere = struct {
 	ID         whereHelperint64
 	InvestorID whereHelperint64
 	GroupID    whereHelperint64
+	Amount     whereHelperfloat64
+	Currency   whereHelperstring
 	CreatedAt  whereHelpertime_Time
 	UpdatedAt  whereHelpertime_Time
 	DeletedAt  whereHelpernull_Time
@@ -63,6 +71,8 @@ var GroupsInvestorWhere = struct {
 	ID:         whereHelperint64{field: "\"groups_investors\".\"id\""},
 	InvestorID: whereHelperint64{field: "\"groups_investors\".\"investor_id\""},
 	GroupID:    whereHelperint64{field: "\"groups_investors\".\"group_id\""},
+	Amount:     whereHelperfloat64{field: "\"groups_investors\".\"amount\""},
+	Currency:   whereHelperstring{field: "\"groups_investors\".\"currency\""},
 	CreatedAt:  whereHelpertime_Time{field: "\"groups_investors\".\"created_at\""},
 	UpdatedAt:  whereHelpertime_Time{field: "\"groups_investors\".\"updated_at\""},
 	DeletedAt:  whereHelpernull_Time{field: "\"groups_investors\".\"deleted_at\""},
@@ -92,9 +102,9 @@ func (*groupsInvestorR) NewStruct() *groupsInvestorR {
 type groupsInvestorL struct{}
 
 var (
-	groupsInvestorAllColumns            = []string{"id", "investor_id", "group_id", "created_at", "updated_at", "deleted_at"}
-	groupsInvestorColumnsWithoutDefault = []string{"investor_id", "group_id", "deleted_at"}
-	groupsInvestorColumnsWithDefault    = []string{"id", "created_at", "updated_at"}
+	groupsInvestorAllColumns            = []string{"id", "investor_id", "group_id", "amount", "currency", "created_at", "updated_at", "deleted_at"}
+	groupsInvestorColumnsWithoutDefault = []string{"investor_id", "group_id", "currency", "deleted_at"}
+	groupsInvestorColumnsWithDefault    = []string{"id", "amount", "created_at", "updated_at"}
 	groupsInvestorPrimaryKeyColumns     = []string{"id"}
 )
 

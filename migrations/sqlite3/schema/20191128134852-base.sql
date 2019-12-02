@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS groups
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
         name VARCHAR (100) NOT NULL,
         strategy_percent DOUBLE DEFAULT 0,
+        amount DOUBLE DEFAULT 0 NOT NULL,
+        currency VARCHAR(5) NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
         deleted_at DATETIME DEFAULT NULL
@@ -28,6 +30,8 @@ CREATE TABLE IF NOT EXISTS groups_investors
         id INTEGER PRIMARY KEY NOT NULL,
         investor_id INTEGER REFERENCES investors (id) NOT NULL,
         group_id INTEGER REFERENCES groups (id) NOT NULL,
+        amount DOUBLE DEFAULT 0 NOT NULL,
+        currency VARCHAR(5) NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
         deleted_at DATETIME DEFAULT NULL
