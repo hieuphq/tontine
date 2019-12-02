@@ -17,6 +17,7 @@ type Group interface {
 	Delete(ctx context.Context, store store.Store, g model.Group) error
 	AddInvestor(ctx context.Context, store store.Store, gi model.GroupInvestor) (*model.GroupInvestor, error)
 	ExistedInvestor(ctx context.Context, store store.Store, groupID, invtID int64) (*model.GroupInvestor, error)
+	InvestorList(ctx context.Context, store store.Store, groupID int64) ([]model.GroupInvestor, error)
 	UpdateInvestor(ctx context.Context, store store.Store, gi model.GroupInvestor) (*model.GroupInvestor, error)
 	FarawellInvestor(ctx context.Context, store store.Store, invtID int64, gID int64) error
 }

@@ -90,10 +90,10 @@ func (r *activityLogRepo) LogGroupItem(ctx context.Context, store store.Store, g
 	return &g, nil
 }
 
-func (r *activityLogRepo) GetGroupLogs(ctx context.Context, store store.Store, g model.Group) ([]model.GroupLog, error) {
+func (r *activityLogRepo) GetGroupLogs(ctx context.Context, store store.Store, gID int64) ([]model.GroupLog, error) {
 	db := store.DB()
 
-	dt, err := dbmodel.GroupLogs(qm.Where("deleted_at IS NULL")).All(ctx, db)
+	dt, err := dbmodel.GroupLogs(qm.Where("group_id = ? AND deleted_at IS NULL", gID)).All(ctx, db)
 	if err != nil {
 		return nil, err
 	}

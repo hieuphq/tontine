@@ -229,7 +229,7 @@ func (r *groupRepo) GetDetailByID(ctx context.Context, store store.Store, ID int
 	dt, err := dbmodel.
 		Groups(
 			qm.Where("id = ? AND deleted_at IS NULL", ID),
-			qm.Load(dbmodel.GroupRels.GroupsInvestors),
+			qm.Load(dbmodel.GroupRels.GroupsInvestors, qm.Where("deleted_at IS NULL")),
 		).
 		One(ctx, db)
 	if err != nil {
@@ -271,4 +271,20 @@ func (r *groupRepo) UpdateInvestor(ctx context.Context, store store.Store, gi mo
 	}
 
 	return &gi, nil
+}
+
+func (r *groupRepo) InvestorList(ctx context.Context, store store.Store, groupID int64) ([]model.GroupInvestor, error) {
+	db := store.DB()
+	dt, err := dbmodel.GroupsInvestors(
+		qm.Where("group_id = ? AND deleted_at IS NULL", groupID),
+	).All(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	rs := []model.GroupInvestor{}
+	for idx := range dt {
+		itm := dt[idx]
+		rs = append(rs, toGroupInvestorModel(itm))
+	}
+	return rs, nil
 }

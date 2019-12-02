@@ -31,9 +31,13 @@ func InitRouter(cfg config.Config) {
 	r.POST("/groups", h.CreateGroup)
 	r.PUT("/groups/:id", h.UpdateGroup)
 
+	r.PUT("/groups/:id/balances", h.UpdateBalance)
+
 	r.POST("/groups/:id/investors", h.AddInvestorIntoGroup)
 	r.PUT("/groups/:id/investors/:investor_id/topup", h.InvestorTopup)
 	r.DELETE("/groups/:id/investors/:investor_id", h.RemoveInvestorFromGroup)
+
+	r.GET("/groups/:id/logs", h.GetGroupLogs)
 
 	r.Run(cfg.Port)
 }

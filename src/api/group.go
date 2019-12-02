@@ -20,7 +20,8 @@ type GroupHandler interface {
 	InvestorTopup(c *gin.Context)
 	RemoveInvestorFromGroup(c *gin.Context)
 	// WithdrawProfit(c *gin.Context)
-	// UpdateBalance(c *gin.Context)
+	UpdateBalance(c *gin.Context)
+	GetGroupLogs(c *gin.Context)
 	// Close(c *gin.Context)
 }
 
@@ -341,7 +342,7 @@ func (h *impl) RemoveInvestorFromGroup(c *gin.Context) {
 	log, err := h.repo.ActivityLog.LogGroup(ctx, store, model.GroupLog{
 		Name:     msg,
 		GroupID:  id,
-		Amount:   amount,
+		Amount:   -amount,
 		Currency: currency,
 	})
 
@@ -353,5 +354,133 @@ func (h *impl) RemoveInvestorFromGroup(c *gin.Context) {
 
 	finally(err)
 	c.JSON(http.StatusOK, log)
+}
+
+type updateBalanceRequest struct {
+	GroupID  int64
+	Amount   float64 `json:"amount" binding:"ne=0"`
+	Currency string  `json:"currency" binding:"oneof=VND USD"`
+}
+
+func (h *impl) UpdateBalance(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var tr updateBalanceRequest
+
+	if err := c.BindJSON(&tr); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	tr.GroupID = id
+
+	ctx := c.Request.Context()
+	store, finally := h.store.BeginTx(ctx)
+
+	// Flow
+	// - check investor existed in system
+
+	existedG, err := h.repo.Group.GetByID(ctx, store, id)
+	if err != nil && existedG == nil {
+		finally(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "group is not existed"})
+		return
+	}
+
+	if existedG.Currency != "" && existedG.Currency != tr.Currency {
+		finally(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "group currency is NOT matched " + existedG.Currency})
+		return
+	}
+
+	total := existedG.Amount
+
+	existedG.Amount = existedG.Amount + tr.Amount
+	_, err = h.repo.Group.Update(ctx, store, *existedG)
+	if err != nil {
+		finally(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unable update group"})
+		return
+	}
+	msg := fmt.Sprintf("Group %v Update balance from %v to %v (%v)", tr.GroupID, total, total+tr.Amount, tr.Currency)
+	log, err := h.repo.ActivityLog.LogGroup(ctx, store, model.GroupLog{
+		Name:     msg,
+		GroupID:  id,
+		Amount:   tr.Amount,
+		Currency: tr.Currency,
+	})
+	if err != nil {
+		finally(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unable log group"})
+		return
+	}
+
+	invts, err := h.repo.Group.InvestorList(ctx, store, tr.GroupID)
+	if err != nil {
+		finally(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "unable get investors"})
+		return
+	}
+
+	if len(invts) < 0 {
+		finally(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "investors is empty"})
+		return
+	}
+
+	currTotal := calculateTotalInGroup(invts)
+	totalPercent := float64(0)
+	for idx := range invts {
+		itm := invts[idx]
+		p := itm.Amount / currTotal
+		if idx == len(invts)-1 {
+			p = 1 - totalPercent
+		}
+		totalPercent = totalPercent + p
+		itm.Amount = itm.Amount + tr.Amount*p
+
+		_, err := h.repo.Group.UpdateInvestor(ctx, store, itm)
+		if err != nil {
+			finally(err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "unable update investor"})
+			return
+		}
+
+	}
+
+	finally(err)
+	c.JSON(http.StatusOK, log)
+}
+
+func calculateTotalInGroup(invts []model.GroupInvestor) float64 {
+	total := float64(0)
+	for idx := range invts {
+		itm := invts[idx]
+		total = total + itm.Amount
+	}
+
+	return total
+}
+
+func (h *impl) GetGroupLogs(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := c.Request.Context()
+	rs, err := h.repo.ActivityLog.GetGroupLogs(ctx, h.store, id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+
+		return
+	}
+	c.JSON(http.StatusOK, rs)
 
 }
